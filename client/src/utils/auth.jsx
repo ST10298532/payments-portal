@@ -4,20 +4,20 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [accessToken, setAccessToken] = useState(null);
-  const [csrfToken, setCsrfToken] = useState(null);
+  const [role, setRole] = useState(null);
 
-  const login = (token, csrf) => {
+  const login = (token, userRole) => {
     setAccessToken(token);
-    setCsrfToken(csrf);
+    setRole(userRole);
   };
 
   const logout = () => {
     setAccessToken(null);
-    setCsrfToken(null);
+    setRole(null);
   };
 
   return (
-    <AuthContext.Provider value={{ accessToken, csrfToken, login, logout }}>
+    <AuthContext.Provider value={{ accessToken, role, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
