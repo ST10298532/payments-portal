@@ -1,32 +1,79 @@
-import React, { useState } from 'react';
-import { apiFetch } from '../utils/api';
-import { useAuth } from '../utils/auth';
+import React, { useState } from "react";
+import { useAuth } from "../utils/auth";
+import { apiFetch } from "../utils/api";
 
-export default function PaymentForm() {
-  const [form, setForm] = useState({ amount: '', currency: 'ZAR', provider: 'SWIFT', payeeAccount: '', swift: '' });
-  const [msg, setMsg] = useState('');
-  const { accessToken, csrfToken } = useAuth();
+const PaymentForm = () => {
+  const { accessToken } = useAuth(); // from AuthProvider
+  const [formData, setFormData] = useState({
+    amount: "",
+    currency: "",
+    provider: "SWIFT",
+    payeeAccount: "",
+    swiftCode: ""
+  });
+  const [message, setMessage] = useState("");
 
-  const submit = async (e) => {
+  const handleChange = e => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async e => {
     e.preventDefault();
+    setMessage("");
     try {
-      const data = await apiFetch('/api/pay', { method: 'POST', body: form, accessToken, csrfToken });
-      setMsg('Payment submitted: ' + data.txId);
+      const result = await apiFetch("/api/pay", {
+        method: "POST",
+        body: formData,
+        accessToken
+      });
+      setMessage(result.message || "Payment sent successfully!");
     } catch (err) {
-      setMsg(err.error || 'Error');
+      console.error(err);
+      setMessage("Error processing payment");
     }
   };
 
   return (
-    <form onSubmit={submit}>
-      <input placeholder="Amount" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-      <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
-        <option>ZAR</option><option>USD</option><option>EUR</option>
-      </select>
-      <input placeholder="Payee account" value={form.payeeAccount} onChange={(e) => setForm({ ...form, payeeAccount: e.target.value })} />
-      <input placeholder="SWIFT/BIC" value={form.swift} onChange={(e) => setForm({ ...form, swift: e.target.value })} />
-      <button type="submit">Pay Now</button>
-      <div>{msg}</div>
-    </form>
+    <div>
+      <h2>Make International Payment</h2>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="number"
+          name="amount"
+          placeholder="Amount"
+          value={formData.amount}
+          onChange={handleChange}
+          required
+        />
+        <input
+          type="text"
+          name="currency"
+          placeholder="Currency (e.g. USD)"
+          value={formData.currency}
+          onChange={handleChange}
+          required
+        />
+        <input
+          type="text"
+          name="payeeAccount"
+          placeholder="Payee Account Number"
+          value={formData.payeeAccount}
+          onChange={handleChange}
+          required
+        />
+        <input
+          type="text"
+          name="swiftCode"
+          placeholder="SWIFT Code"
+          value={formData.swiftCode}
+          onChange={handleChange}
+          required
+        />
+        <button type="submit">Pay Now</button>
+      </form>
+      {message && <p>{message}</p>}
+    </div>
   );
-}
+};
+
+export default PaymentForm;

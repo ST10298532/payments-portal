@@ -1,81 +1,107 @@
-import React, { useEffect, useState } from 'react';
-import { apiFetch } from '../utils/api';
-import { useAuth } from '../utils/auth';
+import React, { useEffect, useState } from "react";
+import { useAuth } from "../utils/auth";
+import { apiFetch } from "../utils/api";
 
-export default function EmployeePortal() {
+const EmployeePortal = () => {
+  const { accessToken, user } = useAuth();
   const [payments, setPayments] = useState([]);
-  const [msg, setMsg] = useState('');
-  const { accessToken, csrfToken } = useAuth();
+  const [message, setMessage] = useState("");
 
-  // Load all pending transactions when employee logs in
   useEffect(() => {
-    async function loadPayments() {
+    const fetchPayments = async () => {
       try {
-        const data = await apiFetch('/api/employee/pending', {
-          accessToken,
-          csrfToken,
+        const data = await apiFetch("/api/employee/pending", {
+          accessToken
         });
-        setPayments(data.payments);
+        setPayments(data.payments || []);
       } catch (err) {
-        setMsg(err.error || 'Could not load payments');
+        console.error(err);
+        setMessage("Error loading payments");
       }
-    }
+    };
+    fetchPayments();
+  }, [accessToken]);
 
-    if (accessToken) loadPayments();
-  }, [accessToken, csrfToken]);
-
-  // Approve or submit a transaction
-  async function handleAction(txId, action) {
+  const handleVerify = async tx_id => {
     try {
-      await apiFetch('/api/employee/verify', {
-        method: 'POST',
-        body: { txId, action },
-        accessToken,
-        csrfToken,
+      await apiFetch(`/api/employee/verify/${tx_id}`, {
+        method: "POST",
+        accessToken
       });
-      setMsg(`${action} successful`);
-      // Remove it from the list after success
-      setPayments((p) => p.filter((x) => x.tx_id !== txId));
+      setPayments(payments.map(p => 
+        p.tx_id === tx_id ? { ...p, verified: true } : p
+      ));
     } catch (err) {
-      setMsg(err.error || 'Action failed');
+      console.error(err);
+      setMessage("Error verifying payment");
     }
+  };
+
+  const handleSubmitToSwift = async () => {
+    try {
+      const result = await apiFetch("/api/employee/submit", {
+        method: "POST",
+        accessToken
+      });
+      setMessage(result.message || "Payments submitted to SWIFT!");
+      setPayments([]);
+    } catch (err) {
+      console.error(err);
+      setMessage("Error submitting to SWIFT");
+    }
+  };
+
+  if (!user || user.role !== "employee") {
+    return <p>Access denied. Employees only.</p>;
   }
 
   return (
-    <div style={{ marginTop: '2rem' }}>
-      <h2>Employee Portal</h2>
-      {msg && <div style={{ color: 'green' }}>{msg}</div>}
+    <div>
+      <h2>Employee Portal – Pending Payments</h2>
+      {message && <p>{message}</p>}
       {payments.length === 0 ? (
-        <p>No pending transactions.</p>
+        <p>No pending payments</p>
       ) : (
-        <table border="1" cellPadding="5" style={{ borderCollapse: 'collapse' }}>
+        <table border="1" cellPadding="8" style={{ width: "100%" }}>
           <thead>
             <tr>
               <th>Transaction ID</th>
               <th>Amount</th>
               <th>Currency</th>
-              <th>Payee</th>
+              <th>Payee Account</th>
               <th>SWIFT</th>
-              <th>Actions</th>
+              <th>Status</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {payments.map((p) => (
+            {payments.map(p => (
               <tr key={p.tx_id}>
                 <td>{p.tx_id}</td>
                 <td>{p.amount}</td>
                 <td>{p.currency}</td>
-                <td>****{p.payee_account_last4}</td>
+                <td>{p.payee_account}</td>
                 <td>{p.swift}</td>
+                <td>{p.verified ? "Verified" : "Pending"}</td>
                 <td>
-                  <button onClick={() => handleAction(p.tx_id, 'VERIFY')}>Verify</button>{' '}
-                  <button onClick={() => handleAction(p.tx_id, 'SUBMIT')}>Submit</button>
+                  {!p.verified && (
+                    <button onClick={() => handleVerify(p.tx_id)}>
+                      Verify
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
+      {payments.some(p => p.verified) && (
+        <button onClick={handleSubmitToSwift} style={{ marginTop: "1rem" }}>
+          Submit to SWIFT
+        </button>
+      )}
     </div>
   );
-}
+};
+
+export default EmployeePortal;
