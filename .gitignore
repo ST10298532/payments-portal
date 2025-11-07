@@ -1,0 +1,19 @@
+# Node modules
+node_modules/
+client/node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Environment files
+.env
+
+# Logs
+*.log
+
+# VS Code settings
+.vscode/
+
+# Local data files
+server/data/*.json
